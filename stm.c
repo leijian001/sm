@@ -80,130 +80,128 @@ static unsigned char hsm_find_path(stm_t *me,
 	{
 		STM_EXIT(me, s);
 		ip = 0;
-	}
-	else
-	{
-		STM_TRIG(me, t, STM_EMPTY_SIG);
-		t = me->temp;
 
-		/* (b) check source==target->super */
-		if( s == t )
+		goto hsm_find_path_end;
+	}
+
+	STM_TRIG(me, t, STM_EMPTY_SIG);
+	t = me->temp;
+
+	/* (b) check source==target->super */
+	if( s == t )
+	{
+		ip = 0;
+		goto hsm_find_path_end;
+	}
+
+	STM_TRIG(me, s, STM_EMPTY_SIG);
+
+	/* (c) check source->super==target->super */
+	if(me->temp == t)
+	{
+		STM_EXIT(me, s);
+		ip = 0;
+		goto hsm_find_path_end;
+	}
+
+	/* (d) check source->super==target */
+	if( me->temp == path[0] )
+	{
+		STM_EXIT(me, s);
+		goto hsm_find_path_end;
+	}
+
+	/* (e) check rest of source==target->super->super..
+	 * and store the entry path along the way
+	 */
+	ip = 1;
+	iq = 0;
+	path[1] = t;
+	t = me->temp;
+
+	/* find target->super->super... */
+	ret = STM_TRIG(me, path[1], STM_EMPTY_SIG);
+	while(STM_RET_SUPER == ret)
+	{
+		path[++ip] = me->temp;
+		if(s == me->temp)
 		{
-			ip = 0;
+			iq = 1;
+			STM_ASSERT(ip < STM_MAX_NEST_DEPTH);
+			ip--;
+
+			ret = STM_RET_HANDLED;
 		}
 		else
 		{
-			STM_TRIG(me, s, STM_EMPTY_SIG);
-
-			/* (c) check source->super==target->super */
-			if(me->temp == t)
-			{
-				STM_EXIT(me, s);
-				ip = 0;
-			}
-			else
-			{
-				/* (d) check source->super==target */
-				if( me->temp == path[0] )
-				{
-					STM_EXIT(me, s);
-				}
-				else
-				{
-					/* (e) check rest of source==target->super->super..
-					 * and store the entry path along the way
-					 */
-					ip = 1;
-					iq = 0;
-					path[1] = t;
-					t = me->temp;
-
-					/* find target->super->super... */
-					ret = STM_TRIG(me, path[1], STM_EMPTY_SIG);
-					while(STM_RET_SUPER == ret)
-					{
-						path[++ip] = me->temp;
-						if(s == me->temp)
-						{
-							iq = 1;
-							STM_ASSERT(ip < STM_MAX_NEST_DEPTH);
-							ip--;
-
-							ret = STM_RET_HANDLED;
-						}
-						else
-						{
-							ret = STM_TRIG(me, me->temp, STM_EMPTY_SIG);
-						}
-					}
-
-					/* the LCA not found yet? */
-					if(0 == iq)
-					{
-						STM_ASSERT(ip < STM_MAX_NEST_DEPTH);
-
-						STM_EXIT(me, s);
-
-						/* (f) check the rest of source->super
-						 *                  == target->super->super...
-						 */
-						iq = ip;
-						ret = STM_RET_IGNORE; /* LCA NOT found */
-						do
-						{
-							s = path[iq];
-							/* is this the LCA? */
-							if(t == s)
-							{
-								ret = STM_RET_HANDLED;
-
-								ip = iq - 1;
-								iq = -1;
-							}
-							else
-							{
-								iq--; /* try lower superstate of target */
-							}
-						}while(iq >= 0);
-
-						 /* LCA not found? */
-						if( STM_RET_HANDLED != ret )
-						{
-							/* (g) check each source->super->...
-							 * for each target->super...
-							 */
-							ret = STM_RET_IGNORE;
-							do
-							{
-								if(STM_RET_HANDLED  == STM_EXIT(me, t))
-								{
-									STM_TRIG(me, t, STM_EMPTY_SIG);
-								}
-								t = me->temp;
-								iq = ip;
-								do
-								{
-									s = path[iq];
-									if( t == s)
-									{
-										ip = iq -1;
-										iq = -1;
-
-										ret = STM_RET_HANDLED; /* break */
-									}
-									else
-									{
-										iq--;
-									}
-								}while(iq >= 0);
-							}while(STM_RET_HANDLED != ret);
-						}
-					}
-				}
-			}
+			ret = STM_TRIG(me, me->temp, STM_EMPTY_SIG);
 		}
 	}
 
+	/* the LCA not found yet? */
+	if(0 == iq)
+	{
+		STM_ASSERT(ip < STM_MAX_NEST_DEPTH);
+
+		STM_EXIT(me, s);
+
+		/* (f) check the rest of source->super
+		 *                  == target->super->super...
+		 */
+		iq = ip;
+		ret = STM_RET_IGNORE; /* LCA NOT found */
+		do
+		{
+			s = path[iq];
+			/* is this the LCA? */
+			if(t == s)
+			{
+				ret = STM_RET_HANDLED;
+
+				ip = iq - 1;
+				iq = -1;
+			}
+			else
+			{
+				iq--; /* try lower superstate of target */
+			}
+		}while(iq >= 0);
+
+		 /* LCA not found? */
+		if( STM_RET_HANDLED != ret )
+		{
+			/* (g) check each source->super->...
+			 * for each target->super...
+			 */
+			ret = STM_RET_IGNORE;
+			do
+			{
+				if(STM_RET_HANDLED  == STM_EXIT(me, t))
+				{
+					STM_TRIG(me, t, STM_EMPTY_SIG);
+				}
+				t = me->temp;
+				iq = ip;
+				do
+				{
+					s = path[iq];
+					if( t == s)
+					{
+						ip = iq -1;
+						iq = -1;
+
+						ret = STM_RET_HANDLED; /* break */
+					}
+					else
+					{
+						iq--;
+					}
+				}while(iq >= 0);
+			}while(STM_RET_HANDLED != ret);
+		}
+	}
+
+hsm_find_path_end:
 	return ip;
 }
 
