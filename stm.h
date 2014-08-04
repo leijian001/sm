@@ -104,6 +104,7 @@ void fsm_dispatch(stm_t *me, stm_event_t *e);
 
 #if CONFIG_STM_HSM
 void hsm_ctor(stm_t *me, stm_state_handler_t init);
+stm_ret_t hsm_top(stm_t *me, const stm_event_t *e);
 void hsm_init(stm_t *me, stm_event_t *e);
 void hsm_dispatch(stm_t *me, stm_event_t *e);
 #endif

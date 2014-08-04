@@ -13,8 +13,8 @@ stm_event_t stm_reserved_event[] =
 #if CONFIG_STM_FSM
 void fsm_ctor(stm_t *me, stm_state_handler_t init)
 {
-	STM_ASSERT(0 == me);
-	STM_ASSERT(0 == init);
+	STM_ASSERT(0 != me);
+	STM_ASSERT(0 != init);
 
 	me->state = 0;
 	me->temp  = init;
@@ -23,8 +23,8 @@ stm_ret_t  fsm_init(stm_t *me, stm_event_t *e)
 {
 	stm_ret_t ret;
 
-	STM_ASSERT(0 == me);
-	STM_ASSERT(0 == me->temp);
+	STM_ASSERT(0 != me);
+	STM_ASSERT(0 != me->temp);
 
 	ret = (me->temp)(me, e);
 	if(ret != STM_RET_TRAN)
@@ -56,7 +56,7 @@ void fsm_dispatch(stm_t *me, stm_event_t *e)
 
 #if CONFIG_STM_HSM
 /**
- * @brief HSM顶状态
+ * @brief HSM椤剁姸鎬�
  */
 stm_ret_t hsm_top(stm_t *me, const stm_event_t *e)
 {
@@ -71,8 +71,8 @@ static unsigned char hsm_find_path(stm_t *me,
 						stm_state_handler_t s,
 						stm_state_handler_t path[STM_MAX_NEST_DEPTH])
 {
-	unsigned char ip = -1;
-	unsigned char iq;
+	signed char ip = -1;
+	signed char iq;
 	stm_ret_t ret;
 
 	/* (a) check source==target (transition to self) */
@@ -209,8 +209,8 @@ static unsigned char hsm_find_path(stm_t *me,
 
 void hsm_ctor(stm_t *me, stm_state_handler_t init)
 {
-	STM_ASSERT(0 == me);
-	STM_ASSERT(0 == init);
+	STM_ASSERT(0 != me);
+	STM_ASSERT(0 != init);
 
 	me->state = hsm_top;
 	me->temp  = init;
@@ -218,7 +218,7 @@ void hsm_ctor(stm_t *me, stm_state_handler_t init)
 void hsm_init(stm_t *me, stm_event_t *e)
 {
 	stm_ret_t ret;
-	unsigned char ip;
+	signed char ip;
 
 	stm_state_handler_t path[STM_MAX_NEST_DEPTH];
 	stm_state_handler_t t = me->state;
@@ -250,8 +250,8 @@ void hsm_init(stm_t *me, stm_event_t *e)
 			STM_ENTRY(me, path[ip--]);
 		}while(ip >= 0);
 
-		me->temp = t;
-	}while(STM_RET_TRAN == STM_TRIG(me, me->temp, STM_INIT_SIG));
+		t = path[0];
+	}while(STM_RET_TRAN == STM_TRIG(me, t, STM_INIT_SIG));
 
 	me->temp = t;
 	me->state = me->temp;
@@ -265,29 +265,29 @@ void hsm_dispatch(stm_t *me, stm_event_t *e)
 
 	stm_ret_t ret;
 
-	// 状态必须稳定
+	// 鐘舵�佸繀椤荤ǔ瀹�
 	STM_ASSERT(me->state == me->temp);
 
 	/* process the event hierarchically... */
-	// 事件递归触发, 直到某个状态处理该事件
+	// 浜嬩欢閫掑綊瑙﹀彂, 鐩村埌鏌愪釜鐘舵�佸鐞嗚浜嬩欢
 	do
 	{
 		s = me->temp;
-		ret = s(me, e); 	// 调用状态处理函数
+		ret = s(me, e); 	// 璋冪敤鐘舵�佸鐞嗗嚱鏁�
 		if(STM_RET_UNHANDLED == ret)
 		{
 			ret = STM_TRIG(me, s, STM_EMPTY_SIG);
 		}
 	}while(STM_RET_SUPER == ret);
 
-	// 如果发生状态转换
+	// 濡傛灉鍙戠敓鐘舵�佽浆鎹�
 	if(STM_RET_TRAN == ret)
 	{
 		stm_state_handler_t path[STM_MAX_NEST_DEPTH];
-		unsigned char ip = -1;
+		signed char ip = -1;
 
-		path[0] = me->temp; 	// 状态转换的目的状态
-		path[1] = t; 			// 状态转换的源状态
+		path[0] = me->temp; 	// 鐘舵�佽浆鎹㈢殑鐩殑鐘舵��
+		path[1] = t; 			// 鐘舵�佽浆鎹㈢殑婧愮姸鎬�
 
 		/* exit current state to transition source s... */
 		for( ; s != t; t = me->temp)
