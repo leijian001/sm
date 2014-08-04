@@ -299,7 +299,7 @@ void hsm_dispatch(stm_t *me, stm_event_t *e)
 			}
 		}
 
-		ip = hsm_find_path(me, path[0], path[1], path);
+		ip = hsm_find_path(me, path[0], s, path);
 
 		for(; ip>=0; ip--)
 		{
