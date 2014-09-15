@@ -1,90 +1,90 @@
-#include 	"stm.h"
+#include 	"sm.h"
 
-stm_event_t stm_reserved_event[] =
+sm_event_t sm_reserved_event[] =
 {
-	{ STM_EMPTY_SIG, 0 },
-	{ STM_ENTRY_SIG, 0 },
-	{ STM_EXIT_SIG,  0 },
-	{ STM_INIT_SIG,  0 },
-	{ STM_USER_SIG,  0 },
+	{ SM_EMPTY_SIG, 0 },
+	{ SM_ENTRY_SIG, 0 },
+	{ SM_EXIT_SIG,  0 },
+	{ SM_INIT_SIG,  0 },
+	{ SM_USER_SIG,  0 },
 };
 
 
-#if CONFIG_STM_FSM
-void fsm_ctor(stm_t *me, stm_state_handler_t init)
+#if CONFIG_SM_FSM
+void fsm_ctor(sm_t *me, sm_state_handler_t init)
 {
-	STM_ASSERT(0 != me);
-	STM_ASSERT(0 != init);
+	SM_ASSERT(0 != me);
+	SM_ASSERT(0 != init);
 
 	me->state = 0;
 	me->temp  = init;
 }
-stm_ret_t  fsm_init(stm_t *me, stm_event_t *e)
+sm_ret_t  fsm_init(sm_t *me, sm_event_t *e)
 {
-	stm_ret_t ret;
+	sm_ret_t ret;
 
-	STM_ASSERT(0 != me);
-	STM_ASSERT(0 != me->temp);
+	SM_ASSERT(0 != me);
+	SM_ASSERT(0 != me->temp);
 
 	ret = (me->temp)(me, e);
-	if(ret != STM_RET_TRAN)
+	if(ret != SM_RET_TRAN)
 	{
 		return ret;
 	}
 
-	STM_ENTRY(me, me->temp);
+	SM_ENTRY(me, me->temp);
 
 	me->state = me->temp;
 
 	return ret;
 }
-void fsm_dispatch(stm_t *me, stm_event_t *e)
+void fsm_dispatch(sm_t *me, sm_event_t *e)
 {
-	stm_ret_t ret;
+	sm_ret_t ret;
 
-	STM_ASSERT(me->state == me->temp);
+	SM_ASSERT(me->state == me->temp);
 
 	ret = (me->temp)(me, e);
-	if(STM_RET_TRAN == ret)
+	if(SM_RET_TRAN == ret)
 	{
-		STM_EXIT(me, me->state);
-		STM_ENTRY(me, me->temp);
+		SM_EXIT(me, me->state);
+		SM_ENTRY(me, me->temp);
 		me->state = me->temp;
 	}
 }
 #endif
 
-#if CONFIG_STM_HSM
+#if CONFIG_SM_HSM
 /**
  * @brief HSM椤剁姸鎬�
  */
-stm_ret_t hsm_top(stm_t *me, const stm_event_t *e)
+sm_ret_t hsm_top(sm_t *me, const sm_event_t *e)
 {
 	(void)me;
 	(void)e;
 
-	return STM_IGNORE();
+	return SM_IGNORE();
 }
 
-static unsigned char hsm_find_path(stm_t *me,
-						stm_state_handler_t t,
-						stm_state_handler_t s,
-						stm_state_handler_t path[STM_MAX_NEST_DEPTH])
+static unsigned char hsm_find_path(sm_t *me,
+						sm_state_handler_t t,
+						sm_state_handler_t s,
+						sm_state_handler_t path[SM_MAX_NEST_DEPTH])
 {
 	signed char ip = -1;
 	signed char iq;
-	stm_ret_t ret;
+	sm_ret_t ret;
 
 	/* (a) check source==target (transition to self) */
 	if( s == t)
 	{
-		STM_EXIT(me, s);
+		SM_EXIT(me, s);
 		ip = 0;
 
 		goto hsm_find_path_end;
 	}
 
-	STM_TRIG(me, t, STM_EMPTY_SIG);
+	SM_TRIG(me, t, SM_EMPTY_SIG);
 	t = me->temp;
 
 	/* (b) check source==target->super */
@@ -94,12 +94,12 @@ static unsigned char hsm_find_path(stm_t *me,
 		goto hsm_find_path_end;
 	}
 
-	STM_TRIG(me, s, STM_EMPTY_SIG);
+	SM_TRIG(me, s, SM_EMPTY_SIG);
 
 	/* (c) check source->super==target->super */
 	if(me->temp == t)
 	{
-		STM_EXIT(me, s);
+		SM_EXIT(me, s);
 		ip = 0;
 		goto hsm_find_path_end;
 	}
@@ -107,7 +107,7 @@ static unsigned char hsm_find_path(stm_t *me,
 	/* (d) check source->super==target */
 	if( me->temp == path[0] )
 	{
-		STM_EXIT(me, s);
+		SM_EXIT(me, s);
 		goto hsm_find_path_end;
 	}
 
@@ -120,43 +120,43 @@ static unsigned char hsm_find_path(stm_t *me,
 	t = me->temp;
 
 	/* find target->super->super... */
-	ret = STM_TRIG(me, path[1], STM_EMPTY_SIG);
-	while(STM_RET_SUPER == ret)
+	ret = SM_TRIG(me, path[1], SM_EMPTY_SIG);
+	while(SM_RET_SUPER == ret)
 	{
 		path[++ip] = me->temp;
 		if(s == me->temp)
 		{
 			iq = 1;
-			STM_ASSERT(ip < STM_MAX_NEST_DEPTH);
+			SM_ASSERT(ip < SM_MAX_NEST_DEPTH);
 			ip--;
 
-			ret = STM_RET_HANDLED;
+			ret = SM_RET_HANDLED;
 		}
 		else
 		{
-			ret = STM_TRIG(me, me->temp, STM_EMPTY_SIG);
+			ret = SM_TRIG(me, me->temp, SM_EMPTY_SIG);
 		}
 	}
 
 	/* the LCA not found yet? */
 	if(0 == iq)
 	{
-		STM_ASSERT(ip < STM_MAX_NEST_DEPTH);
+		SM_ASSERT(ip < SM_MAX_NEST_DEPTH);
 
-		STM_EXIT(me, s);
+		SM_EXIT(me, s);
 
 		/* (f) check the rest of source->super
 		 *                  == target->super->super...
 		 */
 		iq = ip;
-		ret = STM_RET_IGNORE; /* LCA NOT found */
+		ret = SM_RET_IGNORE; /* LCA NOT found */
 		do
 		{
 			s = path[iq];
 			/* is this the LCA? */
 			if(t == s)
 			{
-				ret = STM_RET_HANDLED;
+				ret = SM_RET_HANDLED;
 
 				ip = iq - 1;
 				iq = -1;
@@ -168,17 +168,17 @@ static unsigned char hsm_find_path(stm_t *me,
 		}while(iq >= 0);
 
 		 /* LCA not found? */
-		if( STM_RET_HANDLED != ret )
+		if( SM_RET_HANDLED != ret )
 		{
 			/* (g) check each source->super->...
 			 * for each target->super...
 			 */
-			ret = STM_RET_IGNORE;
+			ret = SM_RET_IGNORE;
 			do
 			{
-				if(STM_RET_HANDLED  == STM_EXIT(me, t))
+				if(SM_RET_HANDLED  == SM_EXIT(me, t))
 				{
-					STM_TRIG(me, t, STM_EMPTY_SIG);
+					SM_TRIG(me, t, SM_EMPTY_SIG);
 				}
 				t = me->temp;
 				iq = ip;
@@ -190,14 +190,14 @@ static unsigned char hsm_find_path(stm_t *me,
 						ip = iq -1;
 						iq = -1;
 
-						ret = STM_RET_HANDLED; /* break */
+						ret = SM_RET_HANDLED; /* break */
 					}
 					else
 					{
 						iq--;
 					}
 				}while(iq >= 0);
-			}while(STM_RET_HANDLED != ret);
+			}while(SM_RET_HANDLED != ret);
 		}
 	}
 
@@ -205,66 +205,66 @@ hsm_find_path_end:
 	return ip;
 }
 
-void hsm_ctor(stm_t *me, stm_state_handler_t init)
+void hsm_ctor(sm_t *me, sm_state_handler_t init)
 {
-	STM_ASSERT(0 != me);
-	STM_ASSERT(0 != init);
+	SM_ASSERT(0 != me);
+	SM_ASSERT(0 != init);
 
 	me->state = hsm_top;
 	me->temp  = init;
 }
-void hsm_init(stm_t *me, stm_event_t *e)
+void hsm_init(sm_t *me, sm_event_t *e)
 {
-	stm_ret_t ret;
+	sm_ret_t ret;
 	signed char ip;
 
-	stm_state_handler_t path[STM_MAX_NEST_DEPTH];
-	stm_state_handler_t t = me->state;
+	sm_state_handler_t path[SM_MAX_NEST_DEPTH];
+	sm_state_handler_t t = me->state;
 
-	STM_ASSERT(0 != me);
-	STM_ASSERT(0 != me->temp);
-	STM_ASSERT(hsm_top == t);
+	SM_ASSERT(0 != me);
+	SM_ASSERT(0 != me->temp);
+	SM_ASSERT(hsm_top == t);
 
 	ret = (me->temp)(me, e);
-	STM_ASSERT(STM_RET_TRAN == ret);
+	SM_ASSERT(SM_RET_TRAN == ret);
 
 	do
 	{
 		ip = 0;
 
 		path[0] = me->temp;
-		STM_TRIG(me, me->temp,STM_EMPTY_SIG);
+		SM_TRIG(me, me->temp,SM_EMPTY_SIG);
 		while( t != me->temp )
 		{
 			path[++ip] = me->temp;
-			STM_TRIG(me, me->temp,STM_EMPTY_SIG);
+			SM_TRIG(me, me->temp,SM_EMPTY_SIG);
 		}
 		me->temp = path[0];
 
-		STM_ASSERT(ip < STM_MAX_NEST_DEPTH);
+		SM_ASSERT(ip < SM_MAX_NEST_DEPTH);
 
 		do
 		{
-			STM_ENTRY(me, path[ip--]);
+			SM_ENTRY(me, path[ip--]);
 		}while(ip >= 0);
 
 		t = path[0];
-	}while(STM_RET_TRAN == STM_TRIG(me, t, STM_INIT_SIG));
+	}while(SM_RET_TRAN == SM_TRIG(me, t, SM_INIT_SIG));
 
 	me->temp = t;
 	me->state = me->temp;
 }
 
 
-void hsm_dispatch(stm_t *me, stm_event_t *e)
+void hsm_dispatch(sm_t *me, sm_event_t *e)
 {
-	stm_state_handler_t t = me->state;
-	stm_state_handler_t s;
+	sm_state_handler_t t = me->state;
+	sm_state_handler_t s;
 
-	stm_ret_t ret;
+	sm_ret_t ret;
 
 	// 鐘舵�佸繀椤荤ǔ瀹�
-	STM_ASSERT(me->state == me->temp);
+	SM_ASSERT(me->state == me->temp);
 
 	/* process the event hierarchically... */
 	// 浜嬩欢閫掑綊瑙﹀彂, 鐩村埌鏌愪釜鐘舵�佸鐞嗚浜嬩欢
@@ -272,16 +272,16 @@ void hsm_dispatch(stm_t *me, stm_event_t *e)
 	{
 		s = me->temp;
 		ret = s(me, e); 	// 璋冪敤鐘舵�佸鐞嗗嚱鏁�
-		if(STM_RET_UNHANDLED == ret)
+		if(SM_RET_UNHANDLED == ret)
 		{
-			ret = STM_TRIG(me, s, STM_EMPTY_SIG);
+			ret = SM_TRIG(me, s, SM_EMPTY_SIG);
 		}
-	}while(STM_RET_SUPER == ret);
+	}while(SM_RET_SUPER == ret);
 
 	// 濡傛灉鍙戠敓鐘舵�佽浆鎹�
-	if(STM_RET_TRAN == ret)
+	if(SM_RET_TRAN == ret)
 	{
-		stm_state_handler_t path[STM_MAX_NEST_DEPTH];
+		sm_state_handler_t path[SM_MAX_NEST_DEPTH];
 		signed char ip = -1;
 
 		path[0] = me->temp; 	// 鐘舵�佽浆鎹㈢殑鐩殑鐘舵��
@@ -290,10 +290,10 @@ void hsm_dispatch(stm_t *me, stm_event_t *e)
 		/* exit current state to transition source s... */
 		for( ; s != t; t = me->temp)
 		{
-			ret = STM_EXIT(me, t);
-			if(STM_RET_HANDLED == ret)
+			ret = SM_EXIT(me, t);
+			if(SM_RET_HANDLED == ret)
 			{
-				STM_TRIG(me, t, STM_EMPTY_SIG);
+				SM_TRIG(me, t, SM_EMPTY_SIG);
 			}
 		}
 
@@ -301,36 +301,36 @@ void hsm_dispatch(stm_t *me, stm_event_t *e)
 
 		for(; ip>=0; ip--)
 		{
-			STM_ENTRY(me, path[ip]);
+			SM_ENTRY(me, path[ip]);
 		}
 
 		t = path[0];
 		me->temp = t;
 
 		/* drill into the target hierarchy... */
-		while( STM_RET_TRAN == STM_TRIG(me, t, STM_INIT_SIG) )
+		while( SM_RET_TRAN == SM_TRIG(me, t, SM_INIT_SIG) )
 		{
 			ip = 0;
 			path[0] = me->temp;
 
-			STM_TRIG(me, me->temp, STM_EMPTY_SIG);
+			SM_TRIG(me, me->temp, SM_EMPTY_SIG);
 			while(t != me->temp)
 			{
 				path[++ip] = me->temp;
-				STM_TRIG(me, me->temp, STM_EMPTY_SIG);
+				SM_TRIG(me, me->temp, SM_EMPTY_SIG);
 			}
 			me->temp = path[0];
 
-			STM_ASSERT(ip < STM_MAX_NEST_DEPTH);
+			SM_ASSERT(ip < SM_MAX_NEST_DEPTH);
 
 			do
 			{
-				STM_ENTRY(me, path[ip--]);
+				SM_ENTRY(me, path[ip--]);
 			}while(ip >= 0);
 
 			t = path[0];
-		}// end: while( STM_RET_TRAN == STM_TRIG(me, t, STM_INIT_SIG) )
-	} // end: if(STM_RET_TRAN == ret)
+		}// end: while( SM_RET_TRAN == SM_TRIG(me, t, SM_INIT_SIG) )
+	} // end: if(SM_RET_TRAN == ret)
 
 	me->temp = t;
 	me->state = t;
