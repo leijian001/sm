@@ -56,7 +56,7 @@ void fsm_dispatch(sm_t *me, sm_event_t *e)
 
 #if CONFIG_SM_HSM
 /**
- * @brief HSM椤剁姸鎬�
+ * @brief HSM根状态
  */
 sm_ret_t hsm_top(sm_t *me, const sm_event_t *e)
 {
@@ -263,29 +263,29 @@ void hsm_dispatch(sm_t *me, sm_event_t *e)
 
 	sm_ret_t ret;
 
-	// 鐘舵�佸繀椤荤ǔ瀹�
+	// 状态必须稳定
 	SM_ASSERT(me->state == me->temp);
 
 	/* process the event hierarchically... */
-	// 浜嬩欢閫掑綊瑙﹀彂, 鐩村埌鏌愪釜鐘舵�佸鐞嗚浜嬩欢
+	// 事件递归触发, 直到某个状态处理该事件
 	do
 	{
 		s = me->temp;
-		ret = s(me, e); 	// 璋冪敤鐘舵�佸鐞嗗嚱鏁�
+		ret = s(me, e); 	// 调用状态处理函数
 		if(SM_RET_UNHANDLED == ret)
 		{
 			ret = SM_TRIG(me, s, SM_EMPTY_SIG);
 		}
 	}while(SM_RET_SUPER == ret);
 
-	// 濡傛灉鍙戠敓鐘舵�佽浆鎹�
+	// 如果发生状态转换
 	if(SM_RET_TRAN == ret)
 	{
 		sm_state_handler_t path[SM_MAX_NEST_DEPTH];
 		signed char ip = -1;
 
-		path[0] = me->temp; 	// 鐘舵�佽浆鎹㈢殑鐩殑鐘舵��
-		path[1] = t; 			// 鐘舵�佽浆鎹㈢殑婧愮姸鎬�
+		path[0] = me->temp; 	// 状态转换的目的状态
+		path[1] = t; 			// 状态转换的源状态
 
 		/* exit current state to transition source s... */
 		for( ; s != t; t = me->temp)
