@@ -1,6 +1,12 @@
 #ifndef __SM_H__
 #define __SM_H__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#include <stddef.h>
+
 #define CONFIG_SM_DEBUG 		1
 
 #ifndef CONFIG_SM_FSM
@@ -113,6 +119,10 @@ void hsm_dispatch(sm_t *me, sm_event_t *e);
 #define SM_ASSERT(cond) 	do{ if(!(cond)){ while(1); } }while(0)
 #else
 #define SM_ASSERT(cond) 	/* NULL */
+#endif
+
+#ifdef __cplusplus
+}
 #endif
 
 #endif
